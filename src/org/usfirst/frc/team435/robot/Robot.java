@@ -188,7 +188,7 @@ public class Robot extends IterativeRobot {
 	public void autonomousPeriodic() {
 		switch (autoMode) {
 		case DRIVE_FORWARD:
-			if (counter < 25) {
+			if (counter < 150) {
 				drive.mecanumDrive_Cartesian(0, -.5, 0, 0);
 			} else {
 				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
@@ -219,7 +219,7 @@ public class Robot extends IterativeRobot {
 				if (lowerLimit.get()) {
 					counter = 64;
 				}
-			} else if (counter < 110) {
+			} else if (counter < 300) {
 				lift.set(0);
 				leftClamp.set(Value.kReverse);
 				rightClamp.set(Value.kReverse);
@@ -275,7 +275,7 @@ public class Robot extends IterativeRobot {
 			//Drive to autozone
 			else if(counter < 300){
 				drive.mecanumDrive_Cartesian(0, 0, 1, 0);
-			} else if (counter < 400){
+			} else if (counter < 450){
 				drive.mecanumDrive_Cartesian(0, -1, 0, 0);
 			}
 			
@@ -335,7 +335,7 @@ public class Robot extends IterativeRobot {
 						counter = 59;
 					}
 				}
-			} else if (counter < 315) {
+			} else if (counter < 400) {
 				drive.mecanumDrive_Cartesian(.5, 0, 0, 0);
 			} else {
 				drive.stopMotor();
