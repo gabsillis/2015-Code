@@ -508,11 +508,13 @@ public class Robot extends IterativeRobot {
 		if (startCompressor.get() && !lastCompressorButtonState) {
 			if (compressorOn) {
 				compressor.stop();
+				compressorOn = false;
 			} else {
 				compressor.start();
+				compressorOn = true;
 			}
-			lastCompressorButtonState = true;
-		}
+		} 
+		lastCompressorButtonState = startCompressor.get();
 		updateDashboard();
 	}
 
