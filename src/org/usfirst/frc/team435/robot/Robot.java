@@ -1,6 +1,10 @@
 package org.usfirst.frc.team435.robot;
 
+import com.ni.vision.NIVision;
+import com.ni.vision.NIVision.Image;
+
 import edu.wpi.first.wpilibj.CANTalon;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
@@ -29,7 +33,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends IterativeRobot {
 
 	enum AutoChoice {
-		DRIVE_FORWARD, PICK_UP_TOTE, PICK_UP_TOTE_TRASH, PICK_UP_RECYCLE_MIDDLE, PICK_UP_TOTES_VISION, PICK_UP_ALL
+		DRIVE_FORWARD, CLAMP_STRAFE, PICK_UP_TOTE, PICK_UP_TOTE_TRASH, PICK_UP_RECYCLE_MIDDLE, PICK_UP_TOTES_VISION, PICK_UP_ALL
 	};
 
 	enum Finite_Mode {
@@ -76,6 +80,8 @@ public class Robot extends IterativeRobot {
 	Tote_State state; // for finite state machine
 	int counter; // for counting Automode cycles
 	int totesPickedUp; // for counting totes in autonomous mode
+	int session;
+	Image frame;
 	public boolean lastCompressorButtonState = false; // Compressor Button State
 														// Holding
 	public boolean compressorOn = true; // Compressor State
@@ -178,6 +184,13 @@ public class Robot extends IterativeRobot {
 	 * used for any initialization code.
 	 */
 	public void robotInit() {
+		//Camera
+		
+		frame = NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB,0);
+		session = NIVision.IMAQdxOpenCamera("cam0", NIVision.IMAQdxCameraControlMode.CameraControlModeController);
+		NIVision.IMAQdxConfigureGrab(session);
+		NIVision.IMAQdxStartAcquisition(session);
+//		server.startAutomaticCapture("cam0");
 		// Compressor Init
 		compressor = new Compressor();
 		compressor.start();
@@ -218,11 +231,12 @@ public class Robot extends IterativeRobot {
 		autoChooser = new SendableChooser();
 		// Auto Chooser
 		autoChooser.addDefault("Drive forward", AutoChoice.DRIVE_FORWARD);
+		autoChooser.addObject("Strafe tote to autozone", AutoChoice.CLAMP_STRAFE);
 		autoChooser.addObject("Pick up a single tote", AutoChoice.PICK_UP_TOTE);
-		autoChooser.addObject("Pick up a single tote and a recycle bin",
-				AutoChoice.PICK_UP_TOTE_TRASH);
-		autoChooser.addObject("Pick up all of the totes",
-				AutoChoice.PICK_UP_ALL);
+		/* autoChooser.addObject("Pick up a single tote and a recycle bin", 
+				AutoChoice.PICK_UP_TOTE_TRASH); */
+		/* autoChooser.addObject("Pick up all of the totes",
+				AutoChoice.PICK_UP_ALL); */
 
 		SmartDashboard.putData("Autonomous Choices", autoChooser);
 
@@ -250,6 +264,20 @@ public class Robot extends IterativeRobot {
 			if (counter < 150) {
 				drive.mecanumDrive_Cartesian(0, -.5, 0, 0);
 			} else {
+				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+			}
+			break;
+			
+		case CLAMP_STRAFE: // starting position is around the tote
+			lift.set(0);
+			if (counter < 1){
+				clamp();
+			} else if(counter < 50){
+				safeMotorSet(lift, AUTO_LIFT_SPEED, lowerLimit, upperLimit);				
+			} else if (counter > 70 && counter < 290){
+				drive.mecanumDrive_Cartesian(.8, 0, .01, 0);
+			} else if(counter > 290){
+				unclamp();
 				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
 			}
 			break;
@@ -416,9 +444,12 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
+		NIVision.IMAQdxGrab(session, frame, 1);
+		CameraServer.getInstance().setImage(frame);
+		
 		double xdrive = driveStick.getX();
 		double ydrive = driveStick.getY();
-		double twistdrive = driveStick.getZ();
+		double twistdrive = driveStick.getZ() * 0.5;
 		double funnelLeftOp = shmoStick.getRawAxis(FUNNEL_LEFT_AXIS);
 		double funnelRightOp = shmoStick.getRawAxis(FUNNEL_RIGHT_AXIS);
 		boolean userInterference = (shmoStick.getRawButton(1)
