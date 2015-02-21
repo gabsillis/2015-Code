@@ -1,5 +1,11 @@
 <xml version="1.0">
 <dashboard>
+	<widget field="Finite Mode" type="String" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="0" y="72"/>
+	</widget>
+	<static-widget class="edu.wpi.first.smartdashboard.gui.elements.WebcamViewerExtension">
+		<location x="74" y="401"/>
+	</static-widget>
 	<widget field="Finite Enabled" type="Boolean" class="edu.wpi.first.smartdashboard.gui.elements.BooleanBox">
 		<location x="382" y="213"/>
 		<width>77</width>

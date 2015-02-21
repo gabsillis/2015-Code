@@ -455,9 +455,9 @@ public class Robot extends IterativeRobot {
 		boolean userInterference = (shmoStick.getRawButton(1)
 									|| shmoStick.getRawButton(2)
 									|| shmoStick.getRawButton(3)
-									|| shmoStick.getRawButton(4))
+									|| shmoStick.getRawButton(4)
 									|| shmoStick.getRawAxis(3) > DEADBAND
-									|| shmoStick.getRawAxis(2) > DEADBAND;
+									|| shmoStick.getRawAxis(2) > DEADBAND);
 
 		// drive Operation
 		if (driveStick.getTrigger()) {
