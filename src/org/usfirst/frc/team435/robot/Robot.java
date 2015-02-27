@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.GenericHID.Hand;
+import edu.wpi.first.wpilibj.Gyro;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.Joystick;
@@ -33,7 +34,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends IterativeRobot {
 
 	enum AutoChoice {
-		DRIVE_FORWARD, CLAMP_STRAFE, PICK_UP_TOTE, PICK_UP_TOTE_TRASH, PICK_UP_RECYCLE_MIDDLE, PICK_UP_TOTES_VISION, PICK_UP_ALL
+		NOTHING, DRIVE_FORWARD, CLAMP_STRAFE, CLAMP_TURN_GO, CLAMP_TURN_GO2, CLAMP_TURN_GO3, CLAMP_TURN_GO4, PICK_UP_TOTE, PICK_UP_TOTE_TRASH, PICK_UP_RECYCLE_MIDDLE, PICK_UP_TOTES_VISION, PICK_UP_ALL, CLAMP_STRAFE_BIN
 	};
 
 	enum Finite_Mode {
@@ -69,6 +70,8 @@ public class Robot extends IterativeRobot {
 	DoubleSolenoid leftClamp, rightClamp;
 	// -- OI --
 	Joystick driveStick, shmoStick;
+	
+	Gyro gyro;
 
 	// --Compressor--
 	Compressor compressor;
@@ -83,7 +86,7 @@ public class Robot extends IterativeRobot {
 	int session;
 	Image frame;
 	public boolean lastCompressorButtonState = false; // Compressor Button State
-														// Holding
+	public boolean rotationFinished = false;// Holding
 	public boolean compressorOn = true; // Compressor State
 	Finite_Mode finiteMode = Finite_Mode.OFF;
 	boolean alreadyClicked = false; // for clamper state holding
@@ -153,6 +156,7 @@ public class Robot extends IterativeRobot {
 
 	@Override
 	public void autonomousInit() {
+		rotationFinished = false;
 		try {
 			autoMode = (AutoChoice) autoChooser.getSelected();
 		} catch (Throwable t) {
@@ -160,6 +164,7 @@ public class Robot extends IterativeRobot {
 		}
 		counter = 0;
 		totesPickedUp = 1;
+		gyro.reset();
 	}
 
 	public void clampClicking() { // changes the state of the clamp on pressing
@@ -221,7 +226,8 @@ public class Robot extends IterativeRobot {
 		inBay = new DigitalInput(3);
 		inFunnel = new DigitalInput(4);
 		toteHeight = new DigitalInput(5);
-		// camera = new USBCamera();
+		
+		gyro = new Gyro(0);
 
 		// camera.openCamera();
 
@@ -231,8 +237,13 @@ public class Robot extends IterativeRobot {
 		autoChooser = new SendableChooser();
 		// Auto Chooser
 		autoChooser.addDefault("Drive forward", AutoChoice.DRIVE_FORWARD);
+		autoChooser.addObject("do nothing", AutoChoice.NOTHING);
 		autoChooser.addObject("Strafe tote to autozone", AutoChoice.CLAMP_STRAFE);
-		autoChooser.addObject("Pick up a single tote", AutoChoice.PICK_UP_TOTE);
+		autoChooser.addObject("Strafe bin to autozone", AutoChoice.CLAMP_STRAFE_BIN);
+//		autoChooser.addObject("Pick up a single tote", AutoChoice.PICK_UP_TOTE);
+		autoChooser.addObject("Clamp turn drive forward gyro", AutoChoice.CLAMP_TURN_GO);
+		autoChooser.addObject("Clamp turn drive forward", AutoChoice.CLAMP_TURN_GO2);
+		SmartDashboard.putNumber("Cycles of turn", 100);
 		/* autoChooser.addObject("Pick up a single tote and a recycle bin", 
 				AutoChoice.PICK_UP_TOTE_TRASH); */
 		/* autoChooser.addObject("Pick up all of the totes",
@@ -248,7 +259,7 @@ public class Robot extends IterativeRobot {
 	}
 
 	/**
-	 * This function is called periodically during autonomous
+	 * This function is called periodically during disabled
 	 */
 	public void disabledPeriodic() {
 		lift.set(0);
@@ -260,8 +271,10 @@ public class Robot extends IterativeRobot {
 	
 	public void autonomousPeriodic() {
 		switch (autoMode) {
+		case NOTHING:
+			break;
 		case DRIVE_FORWARD:
-			if (counter < 150) {
+			if (counter < 100) {
 				drive.mecanumDrive_Cartesian(0, -.5, 0, 0);
 			} else {
 				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
@@ -274,10 +287,83 @@ public class Robot extends IterativeRobot {
 				clamp();
 			} else if(counter < 50){
 				safeMotorSet(lift, AUTO_LIFT_SPEED, lowerLimit, upperLimit);				
-			} else if (counter > 70 && counter < 290){
+			} else if (counter > 70 && counter < 270){
 				drive.mecanumDrive_Cartesian(.8, 0, .01, 0);
-			} else if(counter > 290){
+			} else if(counter > 270){
 				unclamp();
+				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+			}
+			break;
+		case CLAMP_STRAFE_BIN: // starting position is around the tote
+			lift.set(0);
+			if (counter < 1){
+				clamp();
+			} else if(counter < 50){
+				safeMotorSet(lift, AUTO_LIFT_SPEED, lowerLimit, upperLimit);				
+			} else if (counter > 70 && counter < 230){
+				drive.mecanumDrive_Cartesian(-.8, 0, .01, 0);
+			} else if(counter > 230){
+				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+			}
+			break;
+			
+		case CLAMP_TURN_GO: // STARTING POSITION IS AROUND THE TOTE;
+			clamp();
+			if(!rotationFinished){
+				if(gyro.getAngle() < 90){
+					drive.mecanumDrive_Cartesian(0, 0, .3, 0);
+				} else{
+					counter = 0;
+					drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+					rotationFinished = true;
+					counter = 0;
+				}
+			} else if(counter < 100){
+				drive.mecanumDrive_Cartesian(0, -.4, 0, 0);
+				} else{
+					drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+				}
+			
+			break;
+			
+		case CLAMP_TURN_GO2: // STARTING POSITION IS AROUND THE TOTE;
+			if(counter < 1){
+				clamp();
+			} else if(counter < 50){
+				safeMotorSet(lift,AUTO_LIFT_SPEED, lowerLimit,upperLimit);
+			} else if (counter > 70 && counter < SmartDashboard.getNumber("Cycles of turn")){
+				drive.mecanumDrive_Cartesian(0, 0, -.7, 0); // rotate
+			} else if (counter < 310){
+				drive.mecanumDrive_Cartesian(0, .7, 0, 0);
+			} else  if (counter > 310){
+				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+			}
+			break;
+			
+		case CLAMP_TURN_GO3: // STARTING POSITION IS AROUND THE TOTE;
+			if(counter < 1){
+				clamp();
+			} else if(counter < 50){
+				safeMotorSet(lift,AUTO_LIFT_SPEED, lowerLimit,upperLimit);
+			} else if (counter > 70 && counter < 120){
+				drive.mecanumDrive_Cartesian(0, 0, .7, 0); // rotate
+			} else if (counter < 330){
+				drive.mecanumDrive_Cartesian(0, .7, 0, 0);
+			} else  if (counter > 330){
+				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+			}
+			break;
+			
+		case CLAMP_TURN_GO4: // STARTING POSITION IS AROUND THE TOTE;
+			if(counter < 1){
+				clamp();
+			} else if(counter < 50){
+				safeMotorSet(lift,AUTO_LIFT_SPEED, lowerLimit,upperLimit);
+			} else if (counter > 70 && counter < 180){
+				drive.mecanumDrive_Cartesian(0, 0, .7, 0); // rotate
+			} else if (counter < 370){
+				drive.mecanumDrive_Cartesian(0, .7, 0, 0);
+			} else  if (counter > 370){
 				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
 			}
 			break;
@@ -431,6 +517,7 @@ public class Robot extends IterativeRobot {
 			break;
 		}
 		counter++;
+		updateDashboard();
 	}
 
 	private void lift(double speed) {
@@ -700,6 +787,7 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putBoolean("Lift to step button", stepLift.get());
 		SmartDashboard.putString("Finite State", state.toString());
 		SmartDashboard.putString("Finite Mode", finiteMode.toString());
+		SmartDashboard.putNumber("gyro angle", gyro.getAngle());
 
 	}
 }
