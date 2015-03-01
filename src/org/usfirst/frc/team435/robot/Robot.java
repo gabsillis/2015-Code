@@ -34,7 +34,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends IterativeRobot {
 
 	enum AutoChoice {
-		NOTHING, DRIVE_FORWARD, CLAMP_STRAFE, CLAMP_TURN_GO, CLAMP_TURN_GO2, CLAMP_TURN_GO3, CLAMP_TURN_GO4, PICK_UP_TOTE, PICK_UP_TOTE_TRASH, PICK_UP_RECYCLE_MIDDLE, PICK_UP_TOTES_VISION, PICK_UP_ALL, CLAMP_STRAFE_BIN
+		NOTHING, DRIVE_FORWARD, CLAMP_STRAFE, CLAMP_TURN_GO_PLATFORM_SIDE, CLAMP_TURN_GO_BIN, CLAMP_TURN_GO3, CLAMP_TURN_GO4, PICK_UP_TOTE, PICK_UP_TOTE_TRASH, PICK_UP_RECYCLE_MIDDLE, PICK_UP_TOTES_VISION, PICK_UP_ALL, CLAMP_STRAFE_BIN, CLAMP_TURN_GO_NOT_PLATFORM_SIDE
 	};
 
 	enum Finite_Mode {
@@ -241,9 +241,8 @@ public class Robot extends IterativeRobot {
 		autoChooser.addObject("Strafe tote to autozone", AutoChoice.CLAMP_STRAFE);
 		autoChooser.addObject("Strafe bin to autozone", AutoChoice.CLAMP_STRAFE_BIN);
 //		autoChooser.addObject("Pick up a single tote", AutoChoice.PICK_UP_TOTE);
-		autoChooser.addObject("Clamp turn drive forward gyro", AutoChoice.CLAMP_TURN_GO);
-		autoChooser.addObject("Clamp turn drive forward", AutoChoice.CLAMP_TURN_GO2);
-		SmartDashboard.putNumber("Cycles of turn", 100);
+		autoChooser.addObject("Clamp turn drive forward gyro platform", AutoChoice.CLAMP_TURN_GO_PLATFORM_SIDE);
+		autoChooser.addObject("Clamp turn drive forward gyro no platform", AutoChoice.CLAMP_TURN_GO_NOT_PLATFORM_SIDE);
 		/* autoChooser.addObject("Pick up a single tote and a recycle bin", 
 				AutoChoice.PICK_UP_TOTE_TRASH); */
 		/* autoChooser.addObject("Pick up all of the totes",
@@ -274,7 +273,7 @@ public class Robot extends IterativeRobot {
 		case NOTHING:
 			break;
 		case DRIVE_FORWARD:
-			if (counter < 100) {
+			if (counter < SmartDashboard.getNumber("Drive Forward Amount")) {
 				drive.mecanumDrive_Cartesian(0, -.5, 0, 0);
 			} else {
 				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
@@ -307,13 +306,29 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 			
-		case CLAMP_TURN_GO: // STARTING POSITION IS AROUND THE TOTE;
+		case CLAMP_TURN_GO_PLATFORM_SIDE: // STARTING POSITION IS AROUND THE TOTE;
 			clamp();
 			if(!rotationFinished){
 				if(gyro.getAngle() < 90){
 					drive.mecanumDrive_Cartesian(0, 0, .3, 0);
 				} else{
+					drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+					rotationFinished = true;
 					counter = 0;
+				}
+			} else if(counter < 120){
+				drive.mecanumDrive_Cartesian(0, -.4, 0, 0);
+				} else{
+					drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+				}
+			
+			break;
+		case CLAMP_TURN_GO_NOT_PLATFORM_SIDE: // STARTING POSITION IS AROUND THE TOTE;
+			clamp();
+			if(!rotationFinished){
+				if(gyro.getAngle() < 90){
+					drive.mecanumDrive_Cartesian(0, 0, .3, 0);
+				} else{
 					drive.mecanumDrive_Cartesian(0, 0, 0, 0);
 					rotationFinished = true;
 					counter = 0;
@@ -325,17 +340,19 @@ public class Robot extends IterativeRobot {
 				}
 			
 			break;
-			
-		case CLAMP_TURN_GO2: // STARTING POSITION IS AROUND THE TOTE;
-			if(counter < 1){
-				clamp();
-			} else if(counter < 50){
-				safeMotorSet(lift,AUTO_LIFT_SPEED, lowerLimit,upperLimit);
-			} else if (counter > 70 && counter < SmartDashboard.getNumber("Cycles of turn")){
-				drive.mecanumDrive_Cartesian(0, 0, -.7, 0); // rotate
-			} else if (counter < 310){
-				drive.mecanumDrive_Cartesian(0, .7, 0, 0);
-			} else  if (counter > 310){
+		case CLAMP_TURN_GO_BIN:
+			clamp();
+			if(!rotationFinished){
+				if(gyro.getAngle() > -90){
+					drive.mecanumDrive_Cartesian(0, 0, -.3, 0);
+				} else{
+					counter = 0;
+					drive.mecanumDrive_Cartesian(0, 0, 0, 0);
+					rotationFinished = true;
+				}
+			} else if(counter < SmartDashboard.getNumber("Drive Forward Amount")){
+				drive.mecanumDrive_Cartesian(0, -0.4, 0, 0);
+			} else {
 				drive.mecanumDrive_Cartesian(0, 0, 0, 0);
 			}
 			break;
@@ -520,6 +537,7 @@ public class Robot extends IterativeRobot {
 		updateDashboard();
 	}
 
+	@SuppressWarnings("unused")
 	private void lift(double speed) {
 		if ((speed < 0 && lowerLimit.get()) || (speed > 0 && upperLimit.get())) {
 			return;
